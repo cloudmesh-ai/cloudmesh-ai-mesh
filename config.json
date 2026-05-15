@@ -1,0 +1,19 @@
+{
+  "nodes": {
+    "white": {
+      "host": "uva",
+      "deploy_path": "~/cluster-deploy",
+      "source_path": "deploy/white-node"
+    },
+    "spark": {
+      "host": "uva",
+      "deploy_path": "~/cluster-deploy",
+      "source_path": "deploy/spark-node"
+    }
+  },
+  "uva": {
+    "slurm_node": "udc-an26-1",
+    "vllm_port": "18123",
+    "model_name": "uva.gemma"
+  }
+}

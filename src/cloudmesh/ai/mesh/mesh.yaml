@@ -1,0 +1,34 @@
+cloudmesh:
+  ai:
+    mesh:
+      servers:
+        inference:
+          server: vllm
+          port: 4000
+          options:
+            vllm:
+              port: 4000
+              node: WHITE
+            ollama:
+              port: 11434
+              node: WHITE
+            llama_cpp:
+              port: 8080
+              node: SPARK
+        nodes:
+          white:
+            host: white
+            deploy_path: ~/cloudmesh/mesh
+            source_path: deploy/white-node
+          spark:
+            host: spark
+            deploy_path: ~/cloudmesh/mesh
+            source_path: deploy/spark-node
+        uva:
+          slurm_node: udc-an26-1
+          vllm_port: "18123"
+          model_name: uva.gemma
+      logging:
+        level: INFO
+        json_format: false
+        log_dir: ~/.config/cloudmesh/ai/logs
