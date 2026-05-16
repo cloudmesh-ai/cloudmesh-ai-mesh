@@ -3,12 +3,13 @@ extra_css:
 - css/custom.css
 nav:
 - Home: index.md
+- Documents:
+  - README: readme.md
+  - prompt: prompt.md
+  - note-ollama: note-ollama.md
+  - notes: notes.md
+  - PROMPT-README: PROMPT-readme.md
 - API Reference: api.md
-- prompt: prompt.md
-- README: README.md
-- note-ollama: note-ollama.md
-- notes: notes.md
-- PROMPT-README: PROMPT-README.md
 plugins:
 - search
 - mkdocstrings:
