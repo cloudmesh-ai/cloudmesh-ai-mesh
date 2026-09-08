@@ -1,9 +1,9 @@
 # Cloudmesh AI Mesh
 
+Cloudmesh AI Mesh is a management layer for a local AI development cluster. The system operates entirely offline, ensuring that all data and inference remain within the local network.
+
 **Quick Links:**
 - [API Reference](API.md) - Full technical documentation of all modules.
-
-Cloudmesh AI Mesh is a management layer for a local AI development cluster. The system operates entirely offline, ensuring that all data and inference remain within the local network.
 
 ## Cluster Architecture
 
