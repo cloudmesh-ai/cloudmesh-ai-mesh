@@ -8,12 +8,20 @@ logger = get_contextual_logger("mesh.servers.vllm")
 class VllmServer(BaseServer):
     """vLLM server probe implementation."""
 
-    def probe(self) -> dict:
+    def get_models(self) -> list:
+        """Queries the vLLM server for available models."""
         try:
             # vLLM typically follows OpenAI API
             models_data = self._request("/v1/models").get("data", [])
-            models = [m.get("id") for m in models_data]
+            return [m.get("id") for m in models_data]
+        except Exception as e:
+            logger.debug(f"Failed to query vLLM models on {self.host}: {e}")
+            return []
 
+    def probe(self) -> dict:
+        try:
+            models = self.get_models()
+            
             # vLLM doesn't have a standard /version endpoint like Ollama
             # Often the model name is the primary identifier
             version = models[0] if models else "Unknown"

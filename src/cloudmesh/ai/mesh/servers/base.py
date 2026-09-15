@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+import os
+
 import requests
 import subprocess
 import json
@@ -14,6 +16,17 @@ class BaseServer(ABC):
         self.host = host
         self.port = port
         self.server_type = server_type
+        
+        # If auth_key is a path to a file, read its content
+        if auth_key:
+            expanded_path = os.path.expanduser(auth_key)
+            if os.path.exists(expanded_path) and os.path.isfile(expanded_path):
+                try:
+                    with open(expanded_path, 'r') as f:
+                        auth_key = f.read().strip()
+                except Exception as e:
+                    logger.error(f"Failed to read auth_key file {expanded_path}: {e}")
+        
         self.auth_key = auth_key
         self.ssh = ssh
         self.url = f"http://{host}:{port}"
@@ -67,6 +80,12 @@ class BaseServer(ABC):
 
     def check_model(self, model_name: str, available_models: list) -> str:
         """Returns a checkmark or cross based on model availability."""
-        if any(model_name in m for m in available_models):
-            return "✓ " + model_name
-        return "✗ N/A"
+        if not available_models:
+            return "✗"
+        
+        # Check if the configured model is among the available models
+        if any(model_name == m for m in available_models):
+            return "✓"
+            
+        # If different, show the first available model
+        return f"✗ {available_models[0]}"

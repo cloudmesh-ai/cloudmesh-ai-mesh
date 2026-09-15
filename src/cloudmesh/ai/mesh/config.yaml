@@ -15,30 +15,50 @@ cloudmesh:
           server: ollama
           model: qwen2.5:32b
           ssh: false
+          system: 
+            name: "M1 Max 64GB"
+            cpu: "Apple M1 Max 10-Core (8 performance cores and 2 efficiency cores)"
+            cpu_mem: "64 GiB (Unified Memory System)"
+            gpu: "Apple M1 Max 32-Core Integrated GPU"
+            gpu_mem: "64 GiB (Coherent Unified Memory Shared with CPU)"
           port: 
-            service: 11434
+            local: 11434
 
         uva:
           server: vllm
+          version: "0.27.1+93523f72.dev"
           ssh: false
+          system: "4 * A100 80GB"
           model: google/gemma-4-31B-it
+          auth_key: "~/gemma/server_master_key.txt"
           port: 
-            service: 11434
-            proxy: 10004
+            local: 17704
         
         white:
           server: olama
           model: qwen2.5-coder:14b
           ssh: true
+          system:
+            name: "rtx-3090"
+            cpu: "AMD Ryzen 9 5950X 16-Core Processor"
+            cpu_mem: "128 GiB"
+            gpu: "NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1)"
+            gpu_mem: "24.0 GiB"
           port: 
-            service: 11434
-            proxy: 10005
+            remote: 11434
+            local: 10005
 
         spark:
           server: olama
           model: deepseek-r1:32b
           ssh: true
+          system:
+            name: "NVIDIA-DGX-spark"
+            cpu: "20-core Arm (10 Cortex-X925 + 10 Cortex-A725)"
+            cpu_mem: "128 GB LPDDR5x (Unified System Memory)"
+            gpu: "NVIDIA Blackwell Architecture (Integrated GB10 Superchip)"
+            gpu_mem: "128 GB LPDDR5x (Coherent Unified Memory Shared with CPU)"
           port: 
-            service: 11434
-            proxy: 10005
+            remote: 11434
+            local: 10006
       
