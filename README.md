@@ -5,7 +5,7 @@ Cloudmesh AI Mesh is a management layer for a local AI development cluster. The 
 **Quick Links:**
 - [API Reference](API.md) - Full technical documentation of all modules.
 
-## Cluster Architecture
+## 🏗 Cluster Architecture
 
 The cluster consists of three primary components:
 
@@ -27,7 +27,7 @@ The cluster consists of three primary components:
     - **SSH Orchestration**: Tools for managing remote nodes.
     - **AI Agent**: Python-based cluster management agent.
 
-## API and Routing
+## 🌐 API and Routing
 
 ### Core Entrypoint
 All applications connect to the cluster via the LiteLLM gateway:
@@ -42,7 +42,7 @@ LiteLLM manages request distribution based on task requirements and node availab
     - Reasoning tasks $\rightarrow$ Llama 3 class models.
     - Autocomplete $\rightarrow$ Small Mistral models.
 
-## Command Line Interface
+## 💻 Command Line Interface
 
 The cluster is managed via the `cmc mesh` command group.
 
@@ -58,9 +58,35 @@ Executes a diagnostic check of the environment, verifying:
 - Disk quota availability.
 
 #### `cmc mesh info`
-Displays the static configuration and architecture of the AI Mesh cluster.
+Displays the static configuration and architecture of the AI Mesh cluster, including port configuration for all hosts and SSH status.
 
-## Installation and Setup
+#### `cmc mesh claude`
+Starts the Claude AI environment using the local configuration and model.
+
+#### `cmc mesh tunnel <action> [<host>]`
+Manage SSH tunnels for hosts in the mesh.
+
+**Actions**:
+- `start` - Start SSH tunnel(s) for host(s)
+- `stop` - Stop SSH tunnel(s) for host(s)
+- `status` - Check status of SSH tunnel(s)
+
+*HOST: The hostname defined in config.yaml (optional for 'start' and 'stop')*
+
+**Examples**:
+- `cmc mesh tunnel start white` - Start tunnel for specific host
+- `cmc mesh tunnel start` - Start tunnels for all SSH-enabled hosts
+- `cmc mesh tunnel stop spark` - Stop tunnel for specific host
+- `cmc mesh tunnel stop` - Stop all active tunnels
+- `cmc mesh tunnel status` - Check status of all tunnels
+
+#### `cmc mesh set <host>`
+Sets the default host for the AI Mesh cluster in the configuration.
+
+**Example**:
+- `cmc mesh set white` - Set 'white' as the default host
+
+## 🛠 Installation and Setup
 
 ### Compute Node Setup (WHITE)
 
@@ -115,8 +141,8 @@ Install the `Continue.dev` extension and configure the model provider:
 }
 ```
 
-## Operational Constraints
+## ⚠️ Operational Constraints
 
 - **Local Only**: No external API calls or internet-based inference are permitted.
 - **Explicit Execution**: All system-level changes must be performed manually via explicit commands.
-- **Node Specification**: Every command must specify the target machine (WHITE, SPARK, or LAPTOP).
+- **Node Specification**: Every command must specify the target machine (WHITE, SPARK, or LAPTOP) unless a default is set.

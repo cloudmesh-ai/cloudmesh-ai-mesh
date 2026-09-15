@@ -1,6 +1,7 @@
 from cloudmesh.ai.common.logging_utils import get_contextual_logger
 from cloudmesh.ai.mesh.config_manager import MeshConfigManager
 from cloudmesh.ai.mesh.servers import OllamaServer, VllmServer
+import concurrent.futures
 
 logger = get_contextual_logger("mesh.prober")
 
@@ -50,57 +51,66 @@ class MeshProber:
             })
         return nodes_to_probe
 
+    def _probe_node(self, node) -> dict:
+        """
+        Probes a single node and returns the result.
+        """
+        host = node["host"]
+        server_type = node["server"]
+        remote_port = node["port"]
+        local_port = node["local_port"]
+        target_model = node["model"]
+        auth_type = node["auth"]
+        ssh = node["ssh"]
+        auth_key = node.get("auth_key")
+        
+        probe_port = local_port if not ssh else remote_port
+        
+        try:
+            if server_type == "ollama":
+                server = OllamaServer(host, probe_port, "ollama", auth_key=auth_key, ssh=ssh)
+            elif server_type == "vllm":
+                server = VllmServer(host, probe_port, "vllm", auth_key=auth_key, ssh=ssh)
+            else:
+                logger.warning(f"Unsupported server type {server_type} for host {host}")
+                return None
+            
+            probe_result = server.probe()
+            model_status = server.check_model(target_model, probe_result["models"])
+            
+            return {
+                "host": host,
+                "server": server_type,
+                "version": probe_result["version"],
+                "config_model": target_model,
+                "model_status": model_status,
+                "auth": auth_type,
+                "ports": f"R:{remote_port}/L:{local_port}"
+            }
+        except Exception as e:
+            logger.error(f"Failed to probe {host}: {e}")
+            return {
+                "host": host,
+                "server": server_type,
+                "version": "ERROR",
+                "config_model": target_model,
+                "model_status": "✗",
+                "auth": auth_type,
+                "ports": f"R:{remote_port}/L:{local_port}",
+                "error": str(e)
+            }
+
     def probe_all(self) -> list:
         """
         Probe all configured servers and return structured results.
         """
         nodes = self.get_nodes_to_probe()
-        results = []
+        if not nodes:
+            return []
         
-        for node in nodes:
-            host = node["host"]
-            server_type = node["server"]
-            remote_port = node["port"]
-            local_port = node["local_port"]
-            target_model = node["model"]
-            auth_type = node["auth"]
-            ssh = node["ssh"]
-            auth_key = node.get("auth_key")
-            
-            probe_port = local_port if not ssh else remote_port
-            
-            try:
-                if server_type == "ollama":
-                    server = OllamaServer(host, probe_port, "ollama", auth_key=auth_key, ssh=ssh)
-                elif server_type == "vllm":
-                    server = VllmServer(host, probe_port, "vllm", auth_key=auth_key, ssh=ssh)
-                else:
-                    logger.warning(f"Unsupported server type {server_type} for host {host}")
-                    continue
-                
-                probe_result = server.probe()
-                model_status = server.check_model(target_model, probe_result["models"])
-                
-                results.append({
-                    "host": host,
-                    "server": server_type,
-                    "version": probe_result["version"],
-                    "config_model": target_model,
-                    "model_status": model_status,
-                    "auth": auth_type,
-                    "ports": f"R:{remote_port}/L:{local_port}"
-                })
-            except Exception as e:
-                logger.error(f"Failed to probe {host}: {e}")
-                results.append({
-                    "host": host,
-                    "server": server_type,
-                    "version": "ERROR",
-                    "config_model": target_model,
-                    "model_status": "✗",
-                    "auth": auth_type,
-                    "ports": f"R:{remote_port}/L:{local_port}",
-                    "error": str(e)
-                })
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Use map to execute _probe_node in parallel
+            results = list(executor.map(self._probe_node, nodes))
         
-        return results
+        # Filter out None results (from unsupported server types)
+        return [r for r in results if r is not None]

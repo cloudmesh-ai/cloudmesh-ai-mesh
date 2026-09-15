@@ -3,6 +3,7 @@ cloudmesh:
     mesh:
       
       proxy: 4000
+      default: localhost
 
       logging:
         level: INFO
