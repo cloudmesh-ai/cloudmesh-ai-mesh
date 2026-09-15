@@ -200,14 +200,14 @@ def probe_cmd(hello):
             telemetry.complete()
             return
 
-        headers = ["Host", "Enabled", "Server", "Version", "Config Model", "Models", "Auth", "Health", "Key"]
+        headers = ["Hostname", "Host", "Enabled", "Tunnel", "Server", "Version", "Config Model", "Models", "Auth", "Health", "Key"]
         if hello:
             headers.append("Hello")
         headers.append("Ports")
 
         table_data = []
         for r in results:
-            row = [r["host"], r.get("enabled", "-"), r["server"], r["version"], r["config_model"], r["model_status"], r["auth"], r["health"], r["key"]]
+            row = [r["hostname"], r["host"], r.get("enabled", "-"), r.get("tunnel", "-"), r["server"], r["version"], r["config_model"], r["model_status"], r["auth"], r["health"], r["key"]]
             if hello:
                 row.append(r.get("hello", "-"))
             row.append(r["ports"])

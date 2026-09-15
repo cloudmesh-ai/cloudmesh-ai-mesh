@@ -3,6 +3,7 @@ from cloudmesh.ai.mesh.config_manager import MeshConfigManager
 from cloudmesh.ai.mesh.servers import OllamaServer, VllmServer
 from cloudmesh.ai.mesh.servers.base import BaseServer
 import concurrent.futures
+import socket
 
 logger = get_contextual_logger("mesh.prober")
 
@@ -23,7 +24,7 @@ class MeshProber:
             return []
 
         nodes_to_probe = []
-        for host, details in servers_config.items():
+        for hostname, details in servers_config.items():
             server_type = details.get("server")
             # Normalize olama -> ollama
             if server_type == "olama":
@@ -54,7 +55,8 @@ class MeshProber:
             auth_key = details.get("auth_key") or details.get("api_key")
             
             nodes_to_probe.append({
-                "host": details.get("host", host),
+                "hostname": hostname,
+                "host": details.get("host", hostname),
                 "server": server_type,
                 "port": remote_port,
                 "local_port": local_port,
@@ -71,6 +73,7 @@ class MeshProber:
         Probes a single node and returns the result.
         """
         import time
+        hostname = node["hostname"]
         host = node["host"]
         server_type = node["server"]
         remote_port = node["port"]
@@ -81,8 +84,22 @@ class MeshProber:
         auth_key = node.get("auth_key")
         enabled = node.get("enabled", True)
         
+        # Determine tunnel status
+        tunnel_status = "-"
+        if ssh:
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.settimeout(0.1)
+                    if s.connect_ex(('localhost', int(local_port))) == 0:
+                        tunnel_status = "✓"
+                    else:
+                        tunnel_status = "✗"
+            except Exception:
+                tunnel_status = "✗"
+        
         if not enabled:
             return {
+                "hostname": hostname,
                 "host": host,
                 "server": server_type,
                 "version": "-",
@@ -93,7 +110,8 @@ class MeshProber:
                 "key": "-",
                 "hello": "-",
                 "ports": f"R:{remote_port}/L:{local_port}",
-                "enabled": "✗"
+                "enabled": "✗",
+                "tunnel": tunnel_status
             }
 
         # Initialize server object first to use its connectivity methods
@@ -136,6 +154,7 @@ class MeshProber:
                     hello_status = "✗"
             
             return {
+                "hostname": hostname,
                 "host": host,
                 "server": server_type,
                 "version": probe_result["version"],
@@ -146,11 +165,13 @@ class MeshProber:
                 "key": key_status,
                 "hello": hello_status,
                 "ports": f"R:{remote_port}/L:{local_port}",
-                "enabled": "✓"
+                "enabled": "✓",
+                "tunnel": tunnel_status
             }
         except Exception as e:
             logger.error(f"Failed to probe {host}: {e}")
             return {
+                "hostname": hostname,
                 "host": host,
                 "server": server_type,
                 "version": "ERROR",
@@ -162,7 +183,8 @@ class MeshProber:
                 "hello": "-",
                 "ports": f"R:{remote_port}/L:{local_port}",
                 "error": str(e),
-                "enabled": "✓"
+                "enabled": "✓",
+                "tunnel": tunnel_status
             }
 
     def probe_all(self, hello=False) -> list:

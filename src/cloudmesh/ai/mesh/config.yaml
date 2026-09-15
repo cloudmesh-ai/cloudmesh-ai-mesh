@@ -40,7 +40,7 @@ cloudmesh:
             local: 17704
         
         white:
-          enabled: false
+          enabled: true
           server: olama
           model: qwen2.5-coder:14b
           ssh: true
@@ -55,7 +55,7 @@ cloudmesh:
             local: 10005
 
         spark:
-          enabled: false
+          enabled: true
           server: olama
           model: deepseek-r1:32b
           ssh: true
