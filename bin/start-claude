@@ -1,0 +1,1 @@
+ANTHROPIC_API_KEY="fake-key-local-only" ANTHROPIC_BASE_URL="http://localhost:11434/v1" claude --model qwen3-coder
