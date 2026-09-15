@@ -11,9 +11,7 @@ class VllmServer(BaseServer):
     def probe(self) -> dict:
         try:
             # vLLM typically follows OpenAI API
-            resp = requests.get(f"{self.url}/v1/models", headers=self._get_headers(), timeout=2)
-            resp.raise_for_status()
-            models_data = resp.json().get("data", [])
+            models_data = self._request("/v1/models").get("data", [])
             models = [m.get("id") for m in models_data]
 
             # vLLM doesn't have a standard /version endpoint like Ollama

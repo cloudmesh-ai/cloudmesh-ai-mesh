@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 import requests
+import subprocess
+import json
 from cloudmesh.ai.common.io import console
 from cloudmesh.ai.common.logging_utils import get_contextual_logger
 
@@ -8,11 +10,12 @@ logger = get_contextual_logger("mesh.servers")
 class BaseServer(ABC):
     """Base class for mesh inference servers."""
 
-    def __init__(self, host: str, port: int, server_type: str, auth_key: str = None):
+    def __init__(self, host: str, port: int, server_type: str, auth_key: str = None, ssh: bool = False):
         self.host = host
         self.port = port
         self.server_type = server_type
         self.auth_key = auth_key
+        self.ssh = ssh
         self.url = f"http://{host}:{port}"
 
     def _get_headers(self):
@@ -20,6 +23,39 @@ class BaseServer(ABC):
         if self.auth_key:
             headers["Authorization"] = f"Bearer {self.auth_key}"
         return headers
+
+    def _request(self, endpoint: str, timeout: int = 2):
+        """Perform an HTTP request, either locally or via SSH."""
+        if not self.ssh:
+            resp = requests.get(f"{self.url}{endpoint}", headers=self._get_headers(), timeout=timeout)
+            resp.raise_for_status()
+            return resp.json()
+        else:
+            # Use curl on the remote host targeting localhost
+            url = f"http://localhost:{self.port}{endpoint}"
+            
+            header_args = []
+            if self.auth_key:
+                header_args.append(f"-H 'Authorization: Bearer {self.auth_key}'")
+            
+            header_str = " ".join(header_args)
+            curl_cmd = f"curl -s {header_str} {url}".strip()
+            
+            try:
+                result = subprocess.run(
+                    ["ssh", self.host, curl_cmd],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout
+                )
+                if result.returncode != 0:
+                    raise Exception(f"SSH command failed with exit code {result.returncode}: {result.stderr}")
+                
+                return json.loads(result.stdout)
+            except subprocess.TimeoutExpired:
+                raise Exception(f"SSH request to {self.host} timed out after {timeout}s")
+            except json.JSONDecodeError:
+                raise Exception(f"Failed to parse JSON response from {self.host}: {result.stdout}")
 
     @abstractmethod
     def probe(self) -> dict:

@@ -135,13 +135,41 @@ def probe_cmd():
     try:
         telemetry.start(message="Probing server versions")
         
-        # Defined nodes to probe based on the expected output
-        nodes_to_probe = [
-            {"host": "localhost", "server": "ollama", "port": 11434, "proxy_port": 11434, "model": "qwen2.5:32b", "auth": "-"},
-            {"host": "white", "server": "ollama", "port": 11434, "proxy_port": 11000, "model": "qwen2.5:32b", "auth": "-"},
-            {"host": "spark", "server": "ollama", "port": 11434, "proxy_port": 11002, "model": "qwen2.5:32b", "auth": "-"},
-            {"host": "uva", "server": "vllm", "port": 17704, "proxy_port": 17704, "model": "google/gemma-4-31B-it", "auth": "File"},
-        ]
+        # Defined nodes to probe based on the configuration
+        servers_config = config.get("cloudmesh.ai.mesh.servers")
+        if not servers_config:
+            console.error("No servers configured in mesh config.")
+            telemetry.complete()
+            return
+
+        nodes_to_probe = []
+        for host, details in servers_config.items():
+            server_type = details.get("server")
+            # Normalize olama -> ollama
+            if server_type == "olama":
+                server_type = "ollama"
+            
+            model = details.get("model")
+            ssh = details.get("ssh", False)
+            port_cfg = details.get("port", {})
+            
+            # Extract service and proxy ports
+            if isinstance(port_cfg, dict):
+                service_port = port_cfg.get("service")
+                proxy_port = port_cfg.get("proxy", service_port)
+            else:
+                service_port = port_cfg
+                proxy_port = port_cfg
+
+            nodes_to_probe.append({
+                "host": host,
+                "server": server_type,
+                "port": service_port,
+                "proxy_port": proxy_port,
+                "model": model,
+                "auth": "SSH" if ssh else "-",
+                "ssh": ssh
+            })
         
         table_data = []
         
@@ -154,10 +182,11 @@ def probe_cmd():
                 target_model = node["model"]
                 auth_type = node["auth"]
                 
+                ssh = node["ssh"]
                 if server_type == "ollama":
-                    server = OllamaServer(host, port, "ollama")
+                    server = OllamaServer(host, port, "ollama", ssh=ssh)
                 elif server_type == "vllm":
-                    server = VllmServer(host, port, "vllm")
+                    server = VllmServer(host, port, "vllm", ssh=ssh)
                 else:
                     continue
                 
@@ -173,6 +202,7 @@ def probe_cmd():
                     host, 
                     server_type, 
                     result["version"], 
+                    target_model,
                     model_status, 
                     auth_type, 
                     ports_str
@@ -180,7 +210,7 @@ def probe_cmd():
         
         console.banner("Mesh Server Probe", "Inference server versions and models across nodes")
         console.table(
-            ["Host", "Server", "Version", "Models", "Auth", "Ports"], 
+            ["Host", "Server", "Version", "Config Model", "Models", "Auth", "Ports"], 
             table_data
         )
         

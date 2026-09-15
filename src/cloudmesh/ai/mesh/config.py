@@ -23,16 +23,16 @@ class MeshConfig(Config):
     }
 
     def _load_config(self):
-        """Loads configuration from bundled mesh.yaml and then user overrides."""
-        # 1. Load bundled mesh.yaml as base defaults using importlib.resources
+        """Loads configuration from bundled config.yaml and then user overrides."""
+        # 1. Load bundled config.yaml as base defaults using importlib.resources
         try:
-            # Access the mesh.yaml file within the cloudmesh.ai.mesh package
-            with importlib.resources.files("cloudmesh.ai.mesh").joinpath("mesh.yaml").open("r") as f:
+            # Access the config.yaml file within the cloudmesh.ai.mesh package
+            with importlib.resources.files("cloudmesh.ai.mesh").joinpath("config.yaml").open("r") as f:
                 bundled_data = yaml.safe_load(f)
                 if bundled_data:
                     self.data.update(bundled_data)
         except Exception as e:
-            logger.warning(f"Could not load bundled config mesh.yaml: {e}")
+            logger.warning(f"Could not load bundled config config.yaml: {e}")
         
         # 2. Load user overrides from the config path
         if self.path.exists():

@@ -1,0 +1,44 @@
+cloudmesh:
+  ai:
+    mesh:
+      
+      proxy: 4000
+
+      logging:
+        level: INFO
+        json_format: false
+        log_dir: ~/.config/cloudmesh/ai/logs
+      
+      servers:
+
+        localhost:
+          server: ollama
+          model: qwen2.5:32b
+          ssh: false
+          port: 
+            service: 11434
+
+        uva:
+          server: vllm
+          ssh: false
+          model: google/gemma-4-31B-it
+          port: 
+            service: 11434
+            proxy: 10004
+        
+        white:
+          server: olama
+          model: qwen2.5-coder:14b
+          ssh: true
+          port: 
+            service: 11434
+            proxy: 10005
+
+        spark:
+          server: olama
+          model: deepseek-r1:32b
+          ssh: true
+          port: 
+            service: 11434
+            proxy: 10005
+      

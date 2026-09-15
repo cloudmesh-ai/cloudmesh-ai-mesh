@@ -11,18 +11,14 @@ class OllamaServer(BaseServer):
     def probe(self) -> dict:
         try:
             # Get models
-            resp = requests.get(f"{self.url}/api/tags", headers=self._get_headers(), timeout=2)
-            resp.raise_for_status()
-            models_data = resp.json().get("models", [])
+            models_data = self._request("/api/tags").get("models", [])
             models = [m.get("name") for m in models_data]
 
             # Get version - Ollama's /api/version returns a JSON object
             version = "Unknown"
             try:
-                v_resp = requests.get(f"{self.url}/api/version", headers=self._get_headers(), timeout=1)
-                if v_resp.status_code == 200:
-                    v_data = v_resp.json()
-                    version = v_data.get("version", "Unknown")
+                v_data = self._request("/api/version", timeout=1)
+                version = v_data.get("version", "Unknown")
             except:
                 pass
 
