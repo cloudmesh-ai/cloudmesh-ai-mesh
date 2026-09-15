@@ -13,7 +13,7 @@ cloudmesh:
       servers:
 
         localhost:
-          on: true
+          enabled: true
           server: ollama
           host: localhost
           model: qwen2.5:32b
@@ -28,7 +28,7 @@ cloudmesh:
             local: 11434
 
         uva:
-          on: true
+          enabled: true
           server: vllm
           host: localhost
           version: "0.27.1+93523f72.dev"
@@ -40,7 +40,7 @@ cloudmesh:
             local: 17704
         
         white:
-          on: false
+          enabled: false
           server: olama
           model: qwen2.5-coder:14b
           ssh: true
@@ -55,7 +55,7 @@ cloudmesh:
             local: 10005
 
         spark:
-          on: false
+          enabled: false
           server: olama
           model: deepseek-r1:32b
           ssh: true

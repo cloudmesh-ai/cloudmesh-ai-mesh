@@ -32,7 +32,16 @@ class MeshProber:
             model = details.get("model")
             ssh = details.get("ssh", False)
             port_cfg = details.get("port", {})
-            on = details.get("on", True)
+            
+            # Check for 'enabled' first, then 'on'
+            enabled = details.get("enabled", details.get("on", True))
+            
+            # Handle weird YAML parsing where boolean values might become keys
+            if "enabled" not in details and "on" not in details:
+                for k, v in details.items():
+                    if isinstance(v, bool) and k not in ["ssh"]:
+                        enabled = v
+                        break
             
             if isinstance(port_cfg, dict):
                 remote_port = port_cfg.get("remote")
@@ -53,7 +62,7 @@ class MeshProber:
                 "auth": "SSH" if ssh else "-",
                 "ssh": ssh,
                 "auth_key": auth_key,
-                "on": on
+                "enabled": enabled
             })
         return nodes_to_probe
 
@@ -70,9 +79,9 @@ class MeshProber:
         auth_type = node["auth"]
         ssh = node["ssh"]
         auth_key = node.get("auth_key")
-        on = node.get("on", True)
+        enabled = node.get("enabled", True)
         
-        if not on:
+        if not enabled:
             return {
                 "host": host,
                 "server": server_type,
@@ -84,7 +93,7 @@ class MeshProber:
                 "key": "-",
                 "hello": "-",
                 "ports": f"R:{remote_port}/L:{local_port}",
-                "on": "✗"
+                "enabled": "✗"
             }
 
         # Initialize server object first to use its connectivity methods
@@ -137,7 +146,7 @@ class MeshProber:
                 "key": key_status,
                 "hello": hello_status,
                 "ports": f"R:{remote_port}/L:{local_port}",
-                "on": "✓"
+                "enabled": "✓"
             }
         except Exception as e:
             logger.error(f"Failed to probe {host}: {e}")
@@ -153,7 +162,7 @@ class MeshProber:
                 "hello": "-",
                 "ports": f"R:{remote_port}/L:{local_port}",
                 "error": str(e),
-                "on": "✓"
+                "enabled": "✓"
             }
 
     def probe_all(self, hello=False) -> list:

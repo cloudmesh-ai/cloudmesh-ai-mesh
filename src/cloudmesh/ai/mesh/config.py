@@ -10,7 +10,11 @@ logger = ai_log.get_logger("mesh")
 class MeshConfig(Config):
     """Configuration for the AI Mesh cluster."""
     
-    DEFAULT_CONFIG_PATH = Path("~/.config/cloudmesh/ai-mesh.yaml").expanduser()
+    # Prefer the detailed directory structure, fallback to the flat file
+    CONFIG_PATHS = [
+        Path("~/.config/cloudmesh/ai/mesh/config.yaml").expanduser(),
+        Path("~/.config/cloudmesh/ai-mesh.yaml").expanduser(),
+    ]
     
     DEFAULTS = {}
     
@@ -23,28 +27,45 @@ class MeshConfig(Config):
     }
 
     def _load_config(self):
-        """Loads configuration from bundled config.yaml and then user overrides."""
-        # 1. Load bundled config.yaml as base defaults using importlib.resources
+        """Loads configuration from local project file, bundled config, and then user overrides."""
+        # 1. Try to load from the local workspace file first (crucial for development)
         try:
-            # Access the config.yaml file within the cloudmesh.ai.mesh package
-            with importlib.resources.files("cloudmesh.ai.mesh").joinpath("config.yaml").open("r") as f:
+            # Path relative to this file: src/cloudmesh/ai/mesh/config.py -> src/cloudmesh/ai/mesh/config.yaml
+            local_config_path = Path(__file__).parent / "config.yaml"
+            if local_config_path.exists():
+                with open(local_config_path, "r") as f:
+                    local_data = yaml.safe_load(f)
+                    if local_data:
+                        self.data.update(local_data)
+                        # logger.info(f"Loaded local workspace config from: {local_config_path}")
+        except Exception as e:
+            logger.warning(f"Could not load local workspace config: {e}")
+        
+        # 2. Fallback to bundled config.yaml using importlib.resources
+        try:
+            config_path = importlib.resources.files("cloudmesh.ai.mesh").joinpath("config.yaml")
+            with config_path.open("r") as f:
                 bundled_data = yaml.safe_load(f)
                 if bundled_data:
-                    self.data.update(bundled_data)
+                    # Only update if not already set by local config
+                    for k, v in bundled_data.items():
+                        if k not in self.data:
+                            self.data[k] = v
         except Exception as e:
             logger.warning(f"Could not load bundled config config.yaml: {e}")
         
-        # 2. Load user overrides from the config path
-        if self.path.exists():
-            try:
-                with open(self.path, "r") as f:
-                    user_config = yaml.safe_load(f)
-                    if user_config:
-                        self.data.update(user_config)
-            except Exception as e:
-                logger.warning(f"Could not load user config file {self.path}: {e}")
+        # 3. Load user overrides from the config paths (in order of preference)
+        for path in self.CONFIG_PATHS:
+            if path.exists():
+                try:
+                    with open(path, "r") as f:
+                        user_config = yaml.safe_load(f)
+                        if user_config:
+                            self.data.update(user_config)
+                except Exception as e:
+                    logger.warning(f"Could not load user config file {path}: {e}")
         
-        # 3. Apply logging configuration to ai-common logging system
+        # 4. Apply logging configuration to ai-common logging system
         self._apply_logging_config()
 
     def _apply_logging_config(self):
