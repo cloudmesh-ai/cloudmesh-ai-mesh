@@ -15,13 +15,15 @@ Usage Examples:
 
 3. Get general cluster information:
    $ cmc mesh info
+
+4. Probe server versions and models across the mesh:
+   $ cmc mesh probe
 """
 
 import click
 from cloudmesh.ai.common.io import console
 from cloudmesh.ai.common.logging_utils import get_contextual_logger
 from cloudmesh.ai.common.telemetry import Telemetry
-from cloudmesh.ai.hpc.hpc import Hpc
 from cloudmesh.ai.mesh.config import config
 
 # Initialize Logger
@@ -47,8 +49,15 @@ def status_cmd():
     """
     try:
         telemetry.start(message="Checking cluster GPU status")
-        hpc = Hpc()
         
+        try:
+            from cloudmesh.ai.hpc.hpc import Hpc
+            hpc = Hpc()
+        except ImportError:
+            console.warning("GPU status check currently requires ai-hpc package.")
+            telemetry.complete()
+            return
+
         with console.status("Fetching real-time GPU usage from cluster..."):
             usage = hpc.get_cluster_gpu_usage()
             
@@ -85,8 +94,16 @@ def health_cmd():
     """
     try:
         telemetry.start(message="Running cluster health check")
-        hpc = Hpc()
-        hpc.check()
+        
+        try:
+            from cloudmesh.ai.hpc.hpc import Hpc
+            hpc = Hpc()
+            hpc.check()
+        except ImportError:
+            console.warning("Health check logic currently requires ai-hpc package.")
+            telemetry.complete()
+            return
+        
         telemetry.complete()
     except Exception as e:
         telemetry.fail(error=str(e))
@@ -99,15 +116,78 @@ def info_cmd():
     """
     server = config.get("cloudmesh.ai.mesh.servers.inference.server")
     info = (
-        "AI Mesh Cluster\n"
-        "---------------\n"
-        f"Inference Server: {server}\n"
-        "Primary Node: WHITE (RTX 3090)\n"
-        "Fallback Node: SPARK (CPU/Lightweight GPU)\n"
-        "Control Plane: LAPTOP\n"
-        "API Gateway: LiteLLM (port 4000)"
-    )
+        "AI Mesh Cluster\\n"
+        "---------------\\n"
+        f"Inference Server: {server}\\n"
+        "Primary Node: WHITE (RTX 3090)\\n"
+        "Fallback Node: SPARK (CPU/Lightweight GPU)\\n"
+        "Control Plane: LAPTOP\\n"
+        "API Gateway: LiteLLM (port 4000)")
     console.banner("Cluster Information", info)
+
+@mesh_group.command(name="probe")
+def probe_cmd():
+    """
+    Probe the versions of inference servers across the mesh.
+    """
+    from cloudmesh.ai.mesh.servers import OllamaServer, VllmServer
+    
+    try:
+        telemetry.start(message="Probing server versions")
+        
+        # Defined nodes to probe based on the expected output
+        nodes_to_probe = [
+            {"host": "localhost", "server": "ollama", "port": 11434, "proxy_port": 11434, "model": "qwen2.5:32b", "auth": "-"},
+            {"host": "white", "server": "ollama", "port": 11434, "proxy_port": 11000, "model": "qwen2.5:32b", "auth": "-"},
+            {"host": "spark", "server": "ollama", "port": 11434, "proxy_port": 11002, "model": "qwen2.5:32b", "auth": "-"},
+            {"host": "uva", "server": "vllm", "port": 17704, "proxy_port": 17704, "model": "google/gemma-4-31B-it", "auth": "File"},
+        ]
+        
+        table_data = []
+        
+        with console.status("Probing servers..."):
+            for node in nodes_to_probe:
+                host = node["host"]
+                server_type = node["server"]
+                port = node["port"]
+                proxy_port = node["proxy_port"]
+                target_model = node["model"]
+                auth_type = node["auth"]
+                
+                if server_type == "ollama":
+                    server = OllamaServer(host, port, "ollama")
+                elif server_type == "vllm":
+                    server = VllmServer(host, port, "vllm")
+                else:
+                    continue
+                
+                result = server.probe()
+                
+                # Format models column
+                model_status = server.check_model(target_model, result["models"])
+                
+                # Format ports column
+                ports_str = f"S:{port}/P:{proxy_port}"
+                
+                table_data.append([
+                    host, 
+                    server_type, 
+                    result["version"], 
+                    model_status, 
+                    auth_type, 
+                    ports_str
+                ])
+        
+        console.banner("Mesh Server Probe", "Inference server versions and models across nodes")
+        console.table(
+            ["Host", "Server", "Version", "Models", "Auth", "Ports"], 
+            table_data
+        )
+        
+        telemetry.complete()
+    except Exception as e:
+        telemetry.fail(error=str(e))
+        console.error(f"Probe failed: {e}")
 
 @mesh_group.command(name="config")
 @click.argument("key", required=False)

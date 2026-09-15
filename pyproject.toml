@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudmesh-ai-mesh"
+dynamic = ["version"]
+description = "Extension for managing the AI Mesh cluster"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+urls = { "Homepage" = "https://github.com/cloudmesh-ai/cloudmesh-ai-mesh" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "cloudmesh-ai-cmc",
+    "click",
+    "rich",
+    "pyyaml",
+]
+
+[tool.setuptools.dynamic]
+version = {file = "VERSION"}
+
+[project.entry-points."cloudmesh.ai.command"]
+mesh = "command.mesh:register"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cloudmesh*"]
+
+[tool.cloudmesh-ai]
+category = "infrastructure"
+status = "stable"
+order = 20
