@@ -32,6 +32,6 @@ class MeshConfigManager:
         mapping = {
             "inference.server": "cloudmesh.ai.mesh.servers.inference.server",
             "inference.port": "cloudmesh.ai.mesh.servers.inference.port",
-            \"default\": \"cloudmesh.ai.mesh.default\",\n
+            "default": "cloudmesh.ai.mesh.default",
         }
         return mapping.get(key, key)
