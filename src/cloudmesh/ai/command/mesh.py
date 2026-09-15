@@ -180,7 +180,8 @@ def claude_cmd():
         )
 
 @mesh_group.command(name="probe")
-def probe_cmd():
+@click.option("--hello", is_flag=True, help="Send 'hello' to LLMs and measure response time")
+def probe_cmd(hello):
     """
     Probe the versions of inference servers across the mesh.
     """
@@ -192,23 +193,28 @@ def probe_cmd():
         prober = MeshProber()
 
         with console.status("Probing servers..."):
-            results = prober.probe_all()
+            results = prober.probe_all(hello=hello)
 
         if not results:
             console.error("No servers probed or no servers configured in mesh config.")
             telemetry.complete()
             return
 
-        table_data = [
-            [r["host"], r["server"], r["version"], r["config_model"], r["model_status"], r["auth"], r["ports"]]
-            for r in results
-        ]
+        headers = ["Host", "Server", "Version", "Config Model", "Models", "Auth", "Health", "Key"]
+        if hello:
+            headers.append("Hello")
+        headers.append("Ports")
+
+        table_data = []
+        for r in results:
+            row = [r["host"], r["server"], r["version"], r["config_model"], r["model_status"], r["auth"], r["health"], r["key"]]
+            if hello:
+                row.append(r.get("hello", "-"))
+            row.append(r["ports"])
+            table_data.append(row)
 
         console.banner("Mesh Server Probe", "Inference server versions and models across nodes")
-        console.table(
-            ["Host", "Server", "Version", "Config Model", "Models", "Auth", "Ports"],
-            table_data
-        )
+        console.table(headers, table_data)
 
         telemetry.complete()
     except Exception as e:

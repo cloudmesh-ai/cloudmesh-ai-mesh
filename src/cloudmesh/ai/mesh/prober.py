@@ -1,6 +1,7 @@
 from cloudmesh.ai.common.logging_utils import get_contextual_logger
 from cloudmesh.ai.mesh.config_manager import MeshConfigManager
 from cloudmesh.ai.mesh.servers import OllamaServer, VllmServer
+from cloudmesh.ai.mesh.servers.base import BaseServer
 import concurrent.futures
 
 logger = get_contextual_logger("mesh.prober")
@@ -39,6 +40,9 @@ class MeshProber:
                 remote_port = port_cfg
                 local_port = port_cfg
             
+            # Use auth_key or api_key from config
+            auth_key = details.get("auth_key") or details.get("api_key")
+            
             nodes_to_probe.append({
                 "host": host,
                 "server": server_type,
@@ -47,14 +51,15 @@ class MeshProber:
                 "model": model,
                 "auth": "SSH" if ssh else "-",
                 "ssh": ssh,
-                "auth_key": details.get("auth_key")
+                "auth_key": auth_key
             })
         return nodes_to_probe
 
-    def _probe_node(self, node) -> dict:
+    def _probe_node(self, node, hello=False) -> dict:
         """
         Probes a single node and returns the result.
         """
+        import time
         host = node["host"]
         server_type = node["server"]
         remote_port = node["port"]
@@ -63,6 +68,27 @@ class MeshProber:
         auth_type = node["auth"]
         ssh = node["ssh"]
         auth_key = node.get("auth_key")
+        
+        # Health check via localhost:local_port
+        health_status = "✗"
+        try:
+            import requests
+            requests.get(f"http://localhost:{local_port}/", timeout=1)
+            health_status = "✓"
+        except Exception:
+            health_status = "✗"
+
+        # Reachability check via localhost:local_port if auth_key is present
+        key_status = "-"
+        if auth_key:
+            try:
+                import requests
+                # Use BaseServer to resolve auth_key and get headers
+                test_server = BaseServer(host="localhost", port=local_port, server_type=server_type, auth_key=auth_key, ssh=False)
+                requests.get(f"http://localhost:{local_port}/", headers=test_server._get_headers(), timeout=1)
+                key_status = "✓ File"
+            except Exception:
+                key_status = "✗ File"
         
         probe_port = local_port if not ssh else remote_port
         
@@ -78,6 +104,19 @@ class MeshProber:
             probe_result = server.probe()
             model_status = server.check_model(target_model, probe_result["models"])
             
+            # Hello check
+            hello_status = "-"
+            if hello:
+                try:
+                    start_time = time.time()
+                    if server.send_hello(target_model):
+                        elapsed = time.time() - start_time
+                        hello_status = f"✓ {elapsed:.2f}s"
+                    else:
+                        hello_status = "✗"
+                except Exception:
+                    hello_status = "✗"
+            
             return {
                 "host": host,
                 "server": server_type,
@@ -85,6 +124,9 @@ class MeshProber:
                 "config_model": target_model,
                 "model_status": model_status,
                 "auth": auth_type,
+                "health": health_status,
+                "key": key_status,
+                "hello": hello_status,
                 "ports": f"R:{remote_port}/L:{local_port}"
             }
         except Exception as e:
@@ -96,11 +138,14 @@ class MeshProber:
                 "config_model": target_model,
                 "model_status": "✗",
                 "auth": auth_type,
+                "health": health_status,
+                "key": key_status,
+                "hello": "-",
                 "ports": f"R:{remote_port}/L:{local_port}",
                 "error": str(e)
             }
 
-    def probe_all(self) -> list:
+    def probe_all(self, hello=False) -> list:
         """
         Probe all configured servers and return structured results.
         """
@@ -109,8 +154,9 @@ class MeshProber:
             return []
         
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Use map to execute _probe_node in parallel
-            results = list(executor.map(self._probe_node, nodes))
+            # Use submit to pass the hello flag
+            futures = [executor.submit(self._probe_node, node, hello) for node in nodes]
+            results = [f.result() for f in futures]
         
         # Filter out None results (from unsupported server types)
         return [r for r in results if r is not None]

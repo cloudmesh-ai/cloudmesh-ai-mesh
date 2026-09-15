@@ -70,11 +70,62 @@ class BaseServer(ABC):
             except json.JSONDecodeError:
                 raise Exception(f"Failed to parse JSON response from {self.host}: {result.stdout}")
 
+    def _post(self, endpoint: str, data: dict, timeout: int = 10):
+        """Perform an HTTP POST request, either locally or via SSH."""
+        if not self.ssh:
+            resp = requests.post(f"{self.url}{endpoint}", headers=self._get_headers(), json=data, timeout=timeout)
+            resp.raise_for_status()
+            return resp.json()
+        else:
+            # Use curl on the remote host targeting localhost
+            url = f"http://localhost:{self.port}{endpoint}"
+            
+            header_args = []
+            if self.auth_key:
+                header_args.append(f"-H 'Authorization: Bearer {self.auth_key}'")
+            header_args.append("-H 'Content-Type: application/json'")
+            
+            header_str = " ".join(header_args)
+            json_data = json.dumps(data)
+            # Use a heredoc for the data to avoid shell quoting issues with large/complex JSON
+            curl_cmd = f"curl -s {header_str} -d '{json_data}' {url}".strip()
+            
+            try:
+                result = subprocess.run(
+                    ["ssh", self.host, curl_cmd],
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout
+                )
+                if result.returncode != 0:
+                    raise Exception(f"SSH command failed with exit code {result.returncode}: {result.stderr}")
+                
+                return json.loads(result.stdout)
+            except subprocess.TimeoutExpired:
+                raise Exception(f"SSH request to {self.host} timed out after {timeout}s")
+            except json.JSONDecodeError:
+                raise Exception(f"Failed to parse JSON response from {self.host}: {result.stdout}")
+
     @abstractmethod
     def probe(self) -> dict:
         """
         Probes the server for version and model availability.
         Returns a dictionary with 'version', 'models', and 'status'.
+        """
+        pass
+
+    @abstractmethod
+    def send_hello(self, model: str) -> bool:
+        """
+        Sends a 'hello' prompt to the server to verify it can generate a response.
+        Returns True if successful, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def send(self, model: str, msg: str) -> str:
+        """
+        Sends a message to the server and returns the response text.
         """
         pass
 

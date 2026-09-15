@@ -41,3 +41,34 @@ class VllmServer(BaseServer):
                 "models": [],
                 "error": str(e)
             }
+
+    def send_hello(self, model: str) -> bool:
+        """Sends a 'hello' prompt to the vLLM server."""
+        try:
+            data = {
+                "model": model,
+                "messages": [
+                    {"role": "user", "content": "hello"}
+                ]
+            }
+            self._post("/v1/chat/completions", data)
+            return True
+        except Exception as e:
+            logger.error(f"Hello probe failed for vLLM on {self.host}: {e}")
+            return False
+
+    def send(self, model: str, msg: str) -> str:
+        """Sends a message to the vLLM server and returns the response."""
+        try:
+            data = {
+                "model": model,
+                "messages": [
+                    {"role": "user", "content": msg}
+                ]
+            }
+            response = self._post("/v1/chat/completions", data)
+            return response["choices"][0]["message"]["content"]
+        except Exception as e:
+            logger.error(f"Failed to send message to vLLM on {self.host}: {e}")
+            return f"Error: {e}"
+
