@@ -45,7 +45,7 @@ class MeshProber:
             auth_key = details.get("auth_key") or details.get("api_key")
             
             nodes_to_probe.append({
-                "host": host,
+                "host": details.get("host", host),
                 "server": server_type,
                 "port": remote_port,
                 "local_port": local_port,
