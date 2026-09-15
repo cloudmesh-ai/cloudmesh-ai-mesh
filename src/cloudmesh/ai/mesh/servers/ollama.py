@@ -41,13 +41,8 @@ class OllamaServer(BaseServer):
     def send_hello(self, model: str) -> bool:
         """Sends a 'hello' prompt to the Ollama server."""
         try:
-            data = {
-                "model": model,
-                "prompt": "hello",
-                "stream": False
-            }
-            self._post("/api/generate", data)
-            return True
+            response = self.send(model, "hello")
+            return not response.startswith("Error: ")
         except Exception as e:
             logger.error(f"Hello probe failed for Ollama on {self.host}: {e}")
             return False

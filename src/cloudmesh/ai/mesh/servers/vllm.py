@@ -45,14 +45,8 @@ class VllmServer(BaseServer):
     def send_hello(self, model: str) -> bool:
         """Sends a 'hello' prompt to the vLLM server."""
         try:
-            data = {
-                "model": model,
-                "messages": [
-                    {"role": "user", "content": "hello"}
-                ]
-            }
-            self._post("/v1/chat/completions", data)
-            return True
+            response = self.send(model, "hello")
+            return not response.startswith("Error: ")
         except Exception as e:
             logger.error(f"Hello probe failed for vLLM on {self.host}: {e}")
             return False

@@ -87,7 +87,6 @@ class BaseServer(ABC):
             
             header_str = " ".join(header_args)
             json_data = json.dumps(data)
-            # Use a heredoc for the data to avoid shell quoting issues with large/complex JSON
             curl_cmd = f"curl -s {header_str} -d '{json_data}' {url}".strip()
             
             try:
@@ -105,6 +104,39 @@ class BaseServer(ABC):
                 raise Exception(f"SSH request to {self.host} timed out after {timeout}s")
             except json.JSONDecodeError:
                 raise Exception(f"Failed to parse JSON response from {self.host}: {result.stdout}")
+
+    def ping(self) -> bool:
+        """Check if the server is reachable."""
+        try:
+            if not self.ssh:
+                resp = requests.get(self.url, timeout=1)
+                return resp.status_code < 500
+            else:
+                # Use curl to check reachability via SSH
+                url = f"http://localhost:{self.port}/"
+                result = subprocess.run(["ssh", self.host, f"curl -s -o /dev/null -w '%{{http_code}}' {url}"], 
+                                        capture_output=True, text=True, timeout=1)
+                return result.stdout.strip() != "000" and result.stdout.strip() != "500"
+        except Exception:
+            return False
+
+    def ping_auth(self) -> bool:
+        """Check if the server is reachable and authentication is accepted."""
+        if not self.auth_key:
+            return False
+        try:
+            if not self.ssh:
+                resp = requests.get(self.url, headers=self._get_headers(), timeout=1)
+                return resp.status_code == 200 or resp.status_code == 404 # 404 is okay for root if server is up
+            else:
+                url = f"http://localhost:{self.port}/"
+                header = f"-H 'Authorization: Bearer {self.auth_key}'"
+                result = subprocess.run(["ssh", self.host, f"curl -s -o /dev/null -w '%{{http_code}}' {header} {url}"], 
+                                        capture_output=True, text=True, timeout=1)
+                code = result.stdout.strip()
+                return code == "200" or code == "404"
+        except Exception:
+            return False
 
     @abstractmethod
     def probe(self) -> dict:
