@@ -200,9 +200,11 @@ def router_models():
         console.error(f"Failed to list models: {e}")
 
 @router_group.command(name="test")
-def router_test():
+@click.option("--verbose", "-v", is_flag=True, help="Show detailed output during testing")
+def router_test(verbose):
     """Test all available models and measure response times."""
     from cloudmesh.ai.mesh.router_manager import RouterManager
+    import concurrent.futures
     try:
         telemetry.start(message="Testing router models")
         manager = RouterManager()
@@ -213,16 +215,30 @@ def router_test():
             telemetry.complete()
             return
         
-        console.banner("AI Mesh Router Performance Test", "Measuring response times")
+        console.banner("AI Mesh Router Performance Test", "Measuring response times in parallel")
         
         results = []
-        with console.status("Testing models...") as status:
-            for m in models:
-                alias = m["alias"]
-                status.update(f"Testing {alias}...")
-                res = manager.test_model(alias)
-                results.append([res["model"], res["status"], res["time"], res["error"] or "-"])
+        with console.status("Testing models in parallel...") as status:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # Map each model alias to the test_model function
+                future_to_model = {executor.submit(manager.test_model, m["alias"]): m["alias"] for m in models}
+                
+                for future in concurrent.futures.as_completed(future_to_model):
+                    alias = future_to_model[future]
+                    try:
+                        res = future.result()
+                        results.append([res["model"], res["status"], res["time"], res["error"] or "-"])
+                        if verbose:
+                            console.print(f"  - {alias}: {res['status']} {res['time']} {'(Error: ' + res['error'] + ')' if res['error'] else ''}")
+                        status.update(f"Completed: {alias}")
+                    except Exception as e:
+                        results.append([alias, "✗", "-", str(e)])
+                        if verbose:
+                            console.print(f"  - {alias}: ✗ Failed with error: {e}")
+                        status.update(f"Failed: {alias}")
         
+        # Sort results by alias to maintain a consistent order
+        results.sort(key=lambda x: x[0])
         console.table(["Model Alias", "Status", "Time", "Error"], results)
         telemetry.complete()
     except Exception as e:
@@ -230,23 +246,41 @@ def router_test():
         console.error(f"Router test failed: {e}")
 
 @mesh_group.command(name="probe")
-def probe_cmd():
+@click.option("--hello", is_flag=True, help="Test connectivity to models with a hello message")
+def probe_cmd(hello):
     """Probe server versions and models across the mesh."""
     from cloudmesh.ai.mesh.prober import MeshProber
     try:
         telemetry.start(message="Probing mesh servers")
         prober = MeshProber()
-        results = prober.probe_all()
+        results = prober.probe_all(hello=hello)
         
         if not results:
             console.warning("No active servers found to probe.")
         else:
             console.banner("AI Mesh Server Probe", "Current versions and available models")
             table_data = [
-                [r["hostname"], r["version"], r["config_model"], r["health"], r["tunnel"]]
+                [
+                    r["hostname"],
+                    r["host"],
+                    r["enabled"],
+                    r["tunnel"],
+                    r["server"],
+                    r["version"],
+                    r["config_model"],
+                    r["model_status"],
+                    r["auth"],
+                    r["health"],
+                    r["key"],
+                    r["hello"],
+                    r["ports"]
+                ]
                 for r in results
             ]
-            console.table(["Host", "Version", "Model", "Health", "Tunnel"], table_data)
+            console.table([
+                "Hostname", "Host", "Enabled", "Tunnel", "Server", "Version", 
+                "Config Model", "Models", "Auth", "Health", "Key", "Hello", "Ports"
+            ], table_data)
             
         telemetry.complete()
     except Exception as e:
