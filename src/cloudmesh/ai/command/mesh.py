@@ -98,224 +98,218 @@ def info_cmd():
     """
     Display general information about the AI Mesh cluster.
     """
-@mesh_group.command(name="claude")
-def claude_cmd():
-    """
-    Start Claude AI.
-    """
-    import subprocess
-    import os
-    from cloudmesh.ai.common.io import console
+    pass 
 
+@mesh_group.group(name="router")
+def router_group():
+    """Manage the AI Mesh Router (LiteLLM/OpenRouter)."""
+    pass
+
+@router_group.command(name="start")
+def router_start():
+    """Starts the AI Mesh Router."""
+    from cloudmesh.ai.mesh.router_manager import RouterManager
     try:
-        telemetry.start(message="Starting Claude AI")
-        
-        # Environment variables as defined in bin/start-claude
-        env = os.environ.copy()
-        env["ANTHROPIC_API_KEY"] = "fake-key-local-only"
-        env["ANTHROPIC_BASE_URL"] = "http://localhost:11434/v1"
-        
-        # Command as defined in bin/start-claude
-        cmd = ["claude", "--model", "qwen3-coder"]
-        
-        console.info(f"Executing: {' '.join(cmd)}")
-        
-        # Run the command and pipe output to the current terminal
-        subprocess.run(cmd, env=env, check=True)
-        
+        telemetry.start(message="Starting AI Mesh Router")
+        manager = RouterManager()
+        if manager.start():
+            console.ok("Router started successfully.")
+        else:
+            console.error("Failed to start router.")
         telemetry.complete()
-    except subprocess.CalledProcessError as e:
-        telemetry.fail(error=str(e))
-        console.error(f"Claude failed to start: {e}")
     except Exception as e:
         telemetry.fail(error=str(e))
-        console.error(f"Error starting Claude: {e}")
+        console.error(f"Router start failed: {e}")
 
-    from cloudmesh.ai.mesh.manager import MeshManager
-    from cloudmesh.ai.mesh.config_manager import MeshConfigManager
-
-    manager = MeshManager()
-    info = manager.get_cluster_info()
-
-    # Get configuration details including ports
-    config_mgr = MeshConfigManager()
-    servers = config_mgr.get_servers_config()
-
-    # Build the main cluster info
-    info_str = (
-        f"AI Mesh Cluster\n"
-        f"---------------\n"
-        f"Inference Server: {info['inference_server']}\n"
-        f"Primary Node: {info['primary_node']}\n"
-        f"Fallback Node: {info['fallback_node']}\n"
-        f"Control Plane: {info['control_plane']}\n"
-        f"API Gateway: {info['api_gateway']}")
-
-    console.banner("Cluster Information", info_str)
-
-    # Show port configuration if available
-    if servers:
-        console.banner("Port Configuration", "Hosts with their local and remote ports")
-        table_data = []
-        for host, details in servers.items():
-            server_type = details.get("server", "unknown")
-            ssh_enabled = details.get("ssh", False)
-
-            # Get port information
-            ports = details.get("port", {})
-            local_port = ports.get("local", "Not configured")
-            remote_port = ports.get("remote", "Not configured")
-
-            table_data.append([
-                host,
-                server_type,
-                f"Local: {local_port}",
-                f"Remote: {remote_port}",
-                "SSH" if ssh_enabled else "-"
-            ])
-
-        console.table(
-            ["Host", "Server", "Local Port", "Remote Port", "SSH"],
-            table_data
-        )
-
-@mesh_group.command(name="probe")
-@click.option("--hello", is_flag=True, help="Send 'hello' to LLMs and measure response time")
-def probe_cmd(hello):
-    """
-    Probe the versions of inference servers across the mesh.
-    """
-    from cloudmesh.ai.mesh.prober import MeshProber
-
+@router_group.command(name="stop")
+def router_stop():
+    """Stops the AI Mesh Router."""
+    from cloudmesh.ai.mesh.router_manager import RouterManager
     try:
-        telemetry.start(message="Probing server versions")
+        telemetry.start(message="Stopping AI Mesh Router")
+        manager = RouterManager()
+        if manager.stop():
+            console.ok("Router stopped successfully.")
+        else:
+            console.warn("Router was not running or could not be stopped.")
+        telemetry.complete()
+    except Exception as e:
+        telemetry.fail(error=str(e))
+        console.error(f"Router stop failed: {e}")
 
-        prober = MeshProber()
+@router_group.command(name="restart")
+def router_restart():
+    """Restarts the AI Mesh Router to apply new configurations."""
+    from cloudmesh.ai.mesh.router_manager import RouterManager
+    try:
+        telemetry.start(message="Restarting AI Mesh Router")
+        manager = RouterManager()
+        if manager.restart():
+            console.ok("Router restarted successfully.")
+        else:
+            console.error("Failed to restart router.")
+        telemetry.complete()
+    except Exception as e:
+        telemetry.fail(error=str(e))
+        console.error(f"Router restart failed: {e}")
 
-        with console.status("Probing servers..."):
-            results = prober.probe_all(hello=hello)
+@router_group.command(name="status")
+def router_status():
+    """Check the status of the AI Mesh Router."""
+    from cloudmesh.ai.mesh.router_manager import RouterManager
+    try:
+        telemetry.start(message="Checking router status")
+        manager = RouterManager()
+        status = manager.status()
+        
+        console.banner("AI Mesh Router Status", f"Host: {status['host']} Port: {status['port']}")
+        
+        if status["running"]:
+            console.ok(f"Container: Running ({status['status_text']})")
+            if status["healthy"]:
+                console.ok("Health: Healthy ✓")
+            else:
+                console.error("Health: Unhealthy ✗")
+        else:
+            console.error("Container: Stopped")
+            
+        telemetry.complete()
+    except Exception as e:
+        telemetry.fail(error=str(e))
+        console.error(f"Router status check failed: {e}")
 
-        if not results:
-            console.error("No servers probed or no servers configured in mesh config.")
+@router_group.command(name="models")
+def router_models():
+    """List all available models in the router."""
+    from cloudmesh.ai.mesh.router_manager import RouterManager
+    try:
+        telemetry.start(message="Listing router models")
+        manager = RouterManager()
+        models = manager.get_models()
+        
+        if not models:
+            console.warning("No models found in the router config.")
+        else:
+            console.banner("AI Mesh Router Models", "Available model aliases")
+            table_data = [[m["alias"], m["model"], f"{m['host']}:{m['port']}"] for m in models]
+            console.table(["Alias", "Original Model", "Backend"], table_data)
+            
+        telemetry.complete()
+    except Exception as e:
+        telemetry.fail(error=str(e))
+        console.error(f"Failed to list models: {e}")
+
+@router_group.command(name="test")
+def router_test():
+    """Test all available models and measure response times."""
+    from cloudmesh.ai.mesh.router_manager import RouterManager
+    try:
+        telemetry.start(message="Testing router models")
+        manager = RouterManager()
+        models = manager.get_models()
+        
+        if not models:
+            console.error("No models available to test.")
             telemetry.complete()
             return
+        
+        console.banner("AI Mesh Router Performance Test", "Measuring response times")
+        
+        results = []
+        with console.status("Testing models...") as status:
+            for m in models:
+                alias = m["alias"]
+                status.update(f"Testing {alias}...")
+                res = manager.test_model(alias)
+                results.append([res["model"], res["status"], res["time"], res["error"] or "-"])
+        
+        console.table(["Model Alias", "Status", "Time", "Error"], results)
+        telemetry.complete()
+    except Exception as e:
+        telemetry.fail(error=str(e))
+        console.error(f"Router test failed: {e}")
 
-        headers = ["Hostname", "Host", "Enabled", "Tunnel", "Server", "Version", "Config Model", "Models", "Auth", "Health", "Key"]
-        if hello:
-            headers.append("Hello")
-        headers.append("Ports")
-
-        table_data = []
-        for r in results:
-            row = [r["hostname"], r["host"], r.get("enabled", "-"), r.get("tunnel", "-"), r["server"], r["version"], r["config_model"], r["model_status"], r["auth"], r["health"], r["key"]]
-            if hello:
-                row.append(r.get("hello", "-"))
-            row.append(r["ports"])
-            table_data.append(row)
-
-        console.banner("Mesh Server Probe", "Inference server versions and models across nodes")
-        console.table(headers, table_data)
-
+@mesh_group.command(name="probe")
+def probe_cmd():
+    """Probe server versions and models across the mesh."""
+    from cloudmesh.ai.mesh.prober import MeshProber
+    try:
+        telemetry.start(message="Probing mesh servers")
+        prober = MeshProber()
+        results = prober.probe_all()
+        
+        if not results:
+            console.warning("No active servers found to probe.")
+        else:
+            console.banner("AI Mesh Server Probe", "Current versions and available models")
+            table_data = [
+                [r["hostname"], r["version"], r["config_model"], r["health"], r["tunnel"]]
+                for r in results
+            ]
+            console.table(["Host", "Version", "Model", "Health", "Tunnel"], table_data)
+            
         telemetry.complete()
     except Exception as e:
         telemetry.fail(error=str(e))
         console.error(f"Probe failed: {e}")
 
 @mesh_group.command(name="tunnel")
-@click.argument("action", required=True, type=click.Choice(["start", "stop", "status"]))
+@click.argument("action", type=click.Choice(["start", "stop", "status"]))
 @click.argument("host", required=False)
 def tunnel_cmd(action, host):
-    """
-    Manage SSH tunnels for hosts in the mesh.
-
-    ACTION: start, stop, or status
-    HOST: The hostname defined in config.yaml (optional for 'start' and 'stop')
-    """
+    """Manage SSH tunnels to remote hosts in the mesh."""
     from cloudmesh.ai.mesh.tunnel_manager import TunnelManager
-    from cloudmesh.ai.mesh.config_manager import MeshConfigManager
-
     try:
-        telemetry.start(message=f"SSH tunnel {action} command")
-
-        config_mgr = MeshConfigManager()
-        servers = config_mgr.get_servers_config()
-
-        if not servers:
-            console.error("No servers found in configuration.")
-            telemetry.complete()
-            return
-
+        telemetry.start(message=f"Managing SSH tunnels ({action})")
         tunnel_mgr = TunnelManager()
-
-        # Handle different actions
+        
         if action == "start":
             if host:
-                # Start tunnel for specific host
-                if host not in servers:
-                    console.error(f"Hostname '{host}' not found in configuration.")
-                    telemetry.complete()
-                    return
-
-                server_cfg = servers[host]
-                if not server_cfg.get("ssh", False):
-                    console.error(f"SSH is not enabled for host '{host}' in configuration.")
-                    telemetry.complete()
-                    return
-
                 if tunnel_mgr.start(host):
-                    console.ok(f"SSH tunnel started successfully for {host}")
-                    console.print(f"Local port: {server_cfg['port'].get('local')}")
-                    console.print(f"Remote port: {server_cfg['port'].get('remote')}")
-                    console.print(f"Target host: {host}")
+                    console.ok(f"SSH tunnel started for {host}")
                 else:
                     console.error(f"Failed to start SSH tunnel for {host}")
-                    telemetry.fail()
             else:
                 # Start tunnels for all SSH-enabled hosts
+                servers = tunnel_mgr.config_manager.get_servers_config()
                 started_count = 0
                 failed_hosts = []
-
-                for hostname, server_cfg in servers.items():
-                    if server_cfg.get("ssh", False):
+                for hostname, details in servers.items():
+                    if details.get("ssh", False):
                         if tunnel_mgr.start(hostname):
-                            console.ok(f"SSH tunnel started successfully for {hostname}")
                             started_count += 1
                         else:
-                            console.error(f"Failed to start SSH tunnel for {hostname}")
                             failed_hosts.append(hostname)
-
-                if started_count > 0:
-                    console.ok(f"Started tunnels for {started_count} hosts")
+                
+                console.ok(f"Started tunnels for {started_count} hosts")
                 if failed_hosts:
                     console.error(f"Failed to start tunnels for {len(failed_hosts)} hosts: {', '.join(failed_hosts)}")
-
+        
         elif action == "stop":
             if host:
-                # Stop tunnel for specific host
                 if tunnel_mgr.stop(host):
-                    console.ok(f"SSH tunnel stopped successfully for {host}")
+                    console.ok(f"SSH tunnel stopped for {host}")
                 else:
                     console.error(f"Failed to stop SSH tunnel for {host}")
             else:
-                # Stop tunnels for all active hosts
+                # Stop all active tunnels
                 active_tunnels = tunnel_mgr.list_active()
                 if not active_tunnels:
                     console.info("No active tunnels found to stop.")
                 else:
                     stopped_count = 0
                     failed_hosts = []
-
                     for hostname in active_tunnels.keys():
                         if tunnel_mgr.stop(hostname):
                             stopped_count += 1
                         else:
                             console.error(f"Failed to stop SSH tunnel for {hostname}")
                             failed_hosts.append(hostname)
-
+                    
                     console.ok(f"Stopped tunnels for {stopped_count} hosts")
                     if failed_hosts:
                         console.error(f"Failed to stop tunnels for {len(failed_hosts)} hosts: {', '.join(failed_hosts)}")
-
+        
         elif action == "status":
             if host:
                 # Check status for specific host
@@ -333,7 +327,7 @@ def tunnel_cmd(action, host):
                     console.ok(f"Found {len(active_tunnels)} active tunnels:")
                     for hostname, tunnel_info in active_tunnels.items():
                         console.print(f"  {hostname}: Local {tunnel_info['local_port']} -> Remote {tunnel_info['remote_port']} (via {tunnel_info['ssh_host']})")
-
+        
         telemetry.complete()
     except Exception as e:
         telemetry.fail(error=str(e))
@@ -370,6 +364,7 @@ def set_cmd(host):
     except Exception as e:
         telemetry.fail(error=str(e))
         console.error(f"Failed to set default host: {e}")
+
 @mesh_group.command(name="config")
 @click.argument("key", required=False)
 @click.argument("value", required=False)

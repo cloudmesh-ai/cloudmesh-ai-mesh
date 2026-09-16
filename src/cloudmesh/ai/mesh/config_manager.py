@@ -33,5 +33,8 @@ class MeshConfigManager:
             "inference.server": "cloudmesh.ai.mesh.servers.inference.server",
             "inference.port": "cloudmesh.ai.mesh.servers.inference.port",
             "default": "cloudmesh.ai.mesh.default",
+            "router.host": "cloudmesh.ai.mesh.router.host",
+            "router.proxy": "cloudmesh.ai.mesh.router.proxy",
+            "router.service": "cloudmesh.ai.mesh.router.service",
         }
         return mapping.get(key, key)

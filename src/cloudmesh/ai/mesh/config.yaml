@@ -1,8 +1,11 @@
 cloudmesh:
   ai:
     mesh:
-      
-      proxy: 4000
+      router:
+        host: localhost
+        proxy: 4000
+        service: litellm
+        
       default: localhost
 
       logging:
