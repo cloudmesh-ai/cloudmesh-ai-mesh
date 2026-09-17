@@ -1,0 +1,25 @@
+model_list:
+  # 1. Local Ollama Qwen 2.5 (32b)
+  - model_name: qwen2.5-32b
+    litellm_params:
+      model: ollama/qwen2.5:32b
+      api_base: http://host.docker.internal:11434
+
+  # 2. Local vLLM Gemma 4 (31B)
+  - model_name: gemma-4-31b
+    litellm_params:
+      model: openai/google/gemma-4-31B-it
+      api_base: http://host.docker.internal:17704
+      api_key: "any-string-or-file-key"
+
+  # 3. Ollama Coder on port 10005 (via SSH tunnel/forward)
+  - model_name: qwen2.5-coder-14b
+    litellm_params:
+      model: ollama/qwen2.5-coder:14b
+      api_base: http://host.docker.internal:10005
+
+  # 4. DeepSeek R1 on port 10006 (via SSH tunnel/forward)
+  - model_name: deepseek-r1-32b
+    litellm_params:
+      model: ollama/deepseek-r1:32b
+      api_base: http://host.docker.internal:10006
