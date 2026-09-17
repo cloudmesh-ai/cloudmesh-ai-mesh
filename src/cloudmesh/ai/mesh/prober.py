@@ -26,8 +26,8 @@ class MeshProber:
         nodes_to_probe = []
         for hostname, details in servers_config.items():
             server_type = details.get("server")
-            # Normalize olama -> ollama
-            if server_type == "olama":
+            # Normalize ollama -> ollama
+            if server_type == "ollama":
                 server_type = "ollama"
             
             model = details.get("model")

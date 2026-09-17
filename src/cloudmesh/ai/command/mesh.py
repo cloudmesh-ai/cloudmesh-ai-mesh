@@ -191,8 +191,8 @@ def router_models():
             console.warning("No models found in the router config.")
         else:
             console.banner("AI Mesh Router Models", "Available model aliases")
-            table_data = [[m["alias"], m["model"], f"{m['host']}:{m['port']}"] for m in models]
-            console.table(["Alias", "Original Model", "Backend"], table_data)
+            table_data = [[m["alias"], m["model"], m["host"], m["port"]] for m in models]
+            console.table(["Alias", "Model", "Host", "Local Port"], table_data)
             
         telemetry.complete()
     except Exception as e:
@@ -227,19 +227,35 @@ def router_test(verbose):
                     alias = future_to_model[future]
                     try:
                         res = future.result()
-                        results.append([res["model"], res["status"], res["time"], res["error"] or "-"])
+                        results.append([
+                            res["model"], 
+                            res["original_model"], 
+                            res["port"], 
+                            res["status"], 
+                            res["time"], 
+                            res["error"] or "-"
+                        ])
                         if verbose:
                             console.print(f"  - {alias}: {res['status']} {res['time']} {'(Error: ' + res['error'] + ')' if res['error'] else ''}")
                         status.update(f"Completed: {alias}")
                     except Exception as e:
-                        results.append([alias, "✗", "-", str(e)])
+                        # We need to try and find the original model/port even on failure
+                        model_info = next((m for m in models if m["alias"] == alias), {})
+                        results.append([
+                            alias, 
+                            model_info.get("model", "Unknown"), 
+                            model_info.get("port", "-"), 
+                            "✗", 
+                            "-", 
+                            str(e)
+                        ])
                         if verbose:
                             console.print(f"  - {alias}: ✗ Failed with error: {e}")
                         status.update(f"Failed: {alias}")
         
         # Sort results by alias to maintain a consistent order
         results.sort(key=lambda x: x[0])
-        console.table(["Model Alias", "Status", "Time", "Error"], results)
+        console.table(["Model Alias", "Model", "Port", "Status", "Time", "Error"], results)
         telemetry.complete()
     except Exception as e:
         telemetry.fail(error=str(e))

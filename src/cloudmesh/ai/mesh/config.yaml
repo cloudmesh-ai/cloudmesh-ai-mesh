@@ -5,7 +5,7 @@ cloudmesh:
         host: localhost
         proxy: 4000
         service: litellm
-        
+
       default: localhost
 
       logging:
@@ -44,7 +44,7 @@ cloudmesh:
         
         white:
           enabled: true
-          server: olama
+          server: ollama
           model: qwen2.5-coder:14b
           ssh: true
           system:
@@ -59,7 +59,7 @@ cloudmesh:
 
         spark:
           enabled: true
-          server: olama
+          server: ollama
           model: deepseek-r1:32b
           ssh: true
           system:

@@ -50,7 +50,7 @@ The host must be defined in `src/cloudmesh/ai/mesh/config.yaml` with:
 Example configuration:
 ```yaml
 white:
-  server: olama
+  server: ollama
   model: qwen2.5-coder:14b
   ssh: true
   system:
