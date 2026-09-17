@@ -115,11 +115,14 @@ class MeshProber:
             }
 
         # Initialize server object first to use its connectivity methods
+        # Get request timeout from config or default to 60s
+        timeout = self.config_manager.get_config("mesh.timeout", 60)
+
         try:
             if server_type == "ollama":
-                server = OllamaServer(host, local_port if not ssh else remote_port, "ollama", auth_key=auth_key, ssh=ssh)
+                server = OllamaServer(host, local_port if not ssh else remote_port, "ollama", auth_key=auth_key, ssh=ssh, timeout=timeout)
             elif server_type == "vllm":
-                server = VllmServer(host, local_port if not ssh else remote_port, "vllm", auth_key=auth_key, ssh=ssh)
+                server = VllmServer(host, local_port if not ssh else remote_port, "vllm", auth_key=auth_key, ssh=ssh, timeout=timeout)
             else:
                 logger.warning(f"Unsupported server type {server_type} for host {host}")
                 return None

@@ -12,7 +12,7 @@ logger = get_contextual_logger("mesh.servers")
 class BaseServer(ABC):
     """Base class for mesh inference servers."""
 
-    def __init__(self, host: str, port: int, server_type: str, auth_key: str = None, ssh: bool = False):
+    def __init__(self, host: str, port: int, server_type: str, auth_key: str = None, ssh: bool = False, timeout: int = 10):
         self.host = host
         self.port = port
         self.server_type = server_type
@@ -30,6 +30,7 @@ class BaseServer(ABC):
         self.auth_key = auth_key
         self.ssh = ssh
         self.url = f"http://{host}:{port}"
+        self.timeout = timeout
 
     def _get_headers(self):
         headers = {}
@@ -37,8 +38,11 @@ class BaseServer(ABC):
             headers["Authorization"] = f"Bearer {self.auth_key}"
         return headers
 
-    def _request(self, endpoint: str, timeout: int = 2):
+    def _request(self, endpoint: str, timeout: int = None):
         """Perform an HTTP request, either locally or via SSH."""
+        if timeout is None:
+            timeout = 2  # Default for metadata requests
+        
         if not self.ssh:
             resp = requests.get(f"{self.url}{endpoint}", headers=self._get_headers(), timeout=timeout)
             resp.raise_for_status()
@@ -70,8 +74,11 @@ class BaseServer(ABC):
             except json.JSONDecodeError:
                 raise Exception(f"Failed to parse JSON response from {self.host}: {result.stdout}")
 
-    def _post(self, endpoint: str, data: dict, timeout: int = 10):
+    def _post(self, endpoint: str, data: dict, timeout: int = None):
         """Perform an HTTP POST request, either locally or via SSH."""
+        if timeout is None:
+            timeout = self.timeout
+            
         if not self.ssh:
             resp = requests.post(f"{self.url}{endpoint}", headers=self._get_headers(), json=data, timeout=timeout)
             resp.raise_for_status()

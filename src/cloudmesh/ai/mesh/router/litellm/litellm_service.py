@@ -275,6 +275,7 @@ class litellm_service:
                     "api_base": f"http://host.docker.internal:{port}",
                 }
             }
+            
             if api_key:
                 model_entry["litellm_params"]["api_key"] = api_key
 
@@ -311,8 +312,8 @@ class litellm_service:
         """
         if server_type == 'ollama':
             return f"ollama/{model}"
-        elif server_type == 'vllm':
-            return f"openai/{model}"
+        # For vLLM, we return the raw model name and handle provider in get_litellm_config
+        # to avoid double-prefixing which causes 404s on the vLLM server.
         return model
 
     def _resolve_api_key(self, auth_key):

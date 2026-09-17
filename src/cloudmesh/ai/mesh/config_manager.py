@@ -16,10 +16,10 @@ class MeshConfigManager:
         """Retrieves the global inference server setting."""
         return self.config.get("cloudmesh.ai.mesh.servers.inference.server")
 
-    def get_config(self, key: str):
+    def get_config(self, key: str, default=None):
         """Gets a config value using a short key mapping."""
         full_key = self._map_key(key)
-        return self.config.get(full_key)
+        return self.config.get(full_key, default)
 
     def set_config(self, key: str, value):
         """Sets a config value using a short key mapping."""
