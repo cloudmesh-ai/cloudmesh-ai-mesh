@@ -1,6 +1,7 @@
 from cloudmesh.ai.common.ssh.tunnel import Tunnel
 from cloudmesh.ai.mesh.config_manager import MeshConfigManager
 from cloudmesh.ai.common.logging_utils import get_contextual_logger
+import os
 
 logger = get_contextual_logger("mesh.tunnel_manager")
 
@@ -31,6 +32,8 @@ class TunnelManager:
         local_port = ports.get("local")
         remote_port = ports.get("remote")
 
+        print("DEBUG: TUNNEL", local_port, hostname, remote_port)
+
         if not local_port or not remote_port:
             raise ValueError(f"Missing local or remote port configuration for {hostname}.")
 
@@ -38,20 +41,15 @@ class TunnelManager:
             logger.warn(f"Tunnel for {hostname} is already running.")
             return True
 
-        # remote_host is typically localhost when forwarding to a service on the ssh_host
-        tunnel = Tunnel(
-            local_port=int(local_port),
-            remote_host="localhost",
-            remote_port=int(remote_port),
-            ssh_host=hostname
-        )
 
-        if tunnel.start():
-            self.tunnels[hostname] = tunnel
-            return True
+        command = f"ssh -f -N -L {local_port}:localhost:{remote_port} {hostname}"
+        print (command) 
+        os.system (command)
 
-        logger.error(f"Failed to start tunnel for {hostname}")
-        return False
+        return True
+
+
+
 
     def stop(self, hostname: str) -> bool:
         """Stops the tunnel for the specified hostname."""
