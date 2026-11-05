@@ -1,0 +1,13 @@
+alias agy="command agy --model jetstream-gemma4"
+
+alias claude="python3 ~/bin/claude.py"
+
+alias start-llmlite="cd ~/work/cloudmesh-ai-mesh/litellm; make stop; make start"
+
+
+alias gemma2-stop='sudo -n "$CMC" llm stop uva.gemma2 --port 17702'
+alias gemma4-stop='sudo -n "$CMC" llm stop uva.gemma4 --port 17704'
+
+alias gemma2='sudo -n "$CMC" vpn +; "$CMC" llm start uva.gemma2 --port 17702'
+alias gemma4='sudo -n "$CMC" vpn +; "$CMC" llm start uva.gemma4 --port 17704'
+
